@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="cn">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		 
+			
+  
+    <meta name="twitter:card" content="summary"/>
+    
+      <meta name="twitter:image" content="https://nsobject.app/images/avatar.png" />
+    
+  
+  
+  <meta name="twitter:title" content="Install Chisel on macOS Mojave"/>
+  <meta name="twitter:description" content="最近刚跑路到新公司, 拿到新电脑之后装了macOS Mojave &amp; Xcode 10之后准备看代码, 于是想用facebook/chisel 帮忙来简化一下lldb的调试"/>
+  
+    <meta name="twitter:site" content="@PhilCai1993"/>
+  
+  
+  
+  
+    <meta name="twitter:creator" content="@PhilCai"/>
+  
+
+
+
+		
+		<meta name="author" content="PhilCai">
+		
+		<meta name="generator" content="Hugo 0.49" />
+		<title>Install Chisel on macOS Mojave &middot; NSObject</title>
+		<link rel="shortcut icon" href="https://nsobject.app/images/favicon.ico">
+		<link rel="stylesheet" href="https://nsobject.app/css/style.css">
+		<link rel="stylesheet" href="https://nsobject.app/css/highlight.css">
+
+		
+		<link rel="stylesheet" href="https://nsobject.app/css/font-awesome.min.css">
+		
+
+		
+		<link href="https://nsobject.app/index.xml" rel="alternate" type="application/rss+xml" title="NSObject" />
+		
+
+		
+	</head>
+
+    <body>
+       <nav class="main-nav">
+	
+	
+		<a href='https://nsobject.app/'> <span class="arrow">←</span>Home</a>
+	
+	<a href='https://nsobject.app/posts'>Archive</a>
+	<a href='https://nsobject.app/tags'>Tags</a>
+	<a href='https://nsobject.app/about'>About</a>
+
+	
+
+	
+	<a class="cta" href="https://nsobject.app/index.xml">Subscribe</a>
+	
+</nav>
+
+
+        <section id="wrapper" class="post">
+            <article>
+                <header>
+                    <h1>
+                        Install Chisel on macOS Mojave
+                    </h1>
+                    <h2 class="headline">
+                    Oct 9, 2018 17:30
+                    · 726 words
+                    · 2 minute read
+                      <span class="tags">
+                      
+                      
+                          
+                              <a href="https://nsobject.app/tags/ios">iOS</a>
+                          
+                              <a href="https://nsobject.app/tags/xcode">Xcode</a>
+                          
+                      
+                      
+                      </span>
+                    </h2>
+                </header>
+                
+                  
+                
+                <section id="post-body">
+                    <p>最近刚跑路到新公司, 拿到新电脑之后装了macOS Mojave &amp; Xcode 10之后准备看代码, 于是想用<a href="https://github.com/facebook/chisel">facebook/chisel</a> 帮忙来简化一下lldb的调试. 结果用<code>brew install</code> 之后, 出现了compile error.</p>
+
+<p>看看Log就知道是Xcode 10 默认的 <code>New Build System</code>的锅😅.</p>
+
+<p>顺便看了一下<a href="https://github.com/facebook/chisel/issues/249">issue</a>, 暂时也没解决说是<code>Homebrew</code>的锅&hellip;</p>
+
+<p>还不如自给自足, 解决方法蛮简单的:</p>
+
+<p>自己fork一份chisel, 然后用Xcode打开<code>Chisel.xcodeproj</code>, 选File -&gt; Project Settings, 把Build System 改成<strong>Legacy Build System</strong>, 然后推到自己fork的仓库. 在仓库里选择 Release -&gt; Draft a new release. copy一下<strong>Source code
+(tar.gz)</strong>的地址.</p>
+
+<p>在本地修改一下 <code>usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/chisel.rb</code> (这个地址可以通过 <code>brew edit chisel</code> 看到). 其中url改成自己release的压缩包地址, head 改成自己的fork的仓库地址, sha256可以先不改.</p>
+
+<p>运行一下
+<code>brew install --build-from-source /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/chisel.rb</code>, 会报错说校验失败并且会log出一个正确的hash, 把这个rb文件里面的sha256改成log里面的hash, 再跑一下<code>brew install --build-from-source /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/chisel.rb</code>.</p>
+
+<p>应该就可以了.</p>
+
+<p>懒得看👆的可以直接把
+<code>/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/chisel.rb</code> 替换成下面的然后 <code>brew install chisel</code> (没测过应该可以。。。)</p>
+
+<pre><code class="language-ruby">class Chisel &lt; Formula
+  desc &quot;Collection of LLDB commands to assist debugging iOS apps&quot;
+  homepage &quot;https://github.com/facebook/chisel&quot;
+  url &quot;https://github.com/PhilCai1993/chisel/archive/1.8.0.1.tar.gz&quot;
+  sha256 &quot;0b64d26dff26cfd44110512fbea154f1dcd8f7703d764f165286cedf6ac3c268&quot;
+  head &quot;https://github.com/PhilCai1993/chisel.git&quot;
+
+  bottle do
+    cellar :any
+    sha256 &quot;eba994a5b5d1880890bab0db0741ec7f6c65f3cc4a78957355714a84b76f2fa2&quot; =&gt; :high_sierra
+    sha256 &quot;0cde612e49ea07f54a455161b9371f6b662b450169947103dddba66fb2debe6c&quot; =&gt; :sierra
+    sha256 &quot;82f135ec7770a425e666086b7a5d6a31b086c10e11df42fbe849354592f26a3e&quot; =&gt; :el_capitan
+  end
+
+  def install
+    libexec.install Dir[&quot;*.py&quot;, &quot;commands&quot;]
+    prefix.install &quot;PATENTS&quot;
+
+    # == LD_DYLIB_INSTALL_NAME Explanation ==
+    # This make invocation calls xcodebuild, which in turn performs ad hoc code
+    # signing. Note that ad hoc code signing does not need signing identities.
+    # Brew will update binaries to ensure their internal paths are usable, but
+    # modifying a code signed binary will invalidate the signature. To prevent
+    # broken signing, this build specifies the target install name up front,
+    # in which case brew doesn't perform its modifications.
+    system &quot;make&quot;, &quot;-C&quot;, &quot;Chisel&quot;, &quot;install&quot;, &quot;PREFIX=#{lib}&quot;, \
+      &quot;LD_DYLIB_INSTALL_NAME=#{opt_prefix}/lib/Chisel.framework/Chisel&quot;
+  end
+
+  def caveats; &lt;&lt;~EOS
+    Add the following line to ~/.lldbinit to load chisel when Xcode launches:
+      command script import #{opt_libexec}/fblldb.py
+  EOS
+  end
+
+  test do
+    xcode_path = `xcode-select --print-path`.strip
+    lldb_rel_path = &quot;Contents/SharedFrameworks/LLDB.framework/Resources/Python&quot;
+    ENV[&quot;PYTHONPATH&quot;] = &quot;#{xcode_path}/../../#{lldb_rel_path}&quot;
+    system &quot;python&quot;, &quot;#{libexec}/fblldb.py&quot;
+  end
+end
+
+</code></pre>
+
+<p>最后配置一下<code>.lldbinit</code>, 常规操作.</p>
+
+<p>想吐槽的是如果我知道怎么让Xcode默认都不用New Build System 就不用搞这些了&hellip; 还是自己太菜🐔</p>
+
+                </section>
+            </article>
+
+            
+                <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2fnsobject.app%2fposts%2finstall-chisel%2f - Install%20Chisel%20on%20macOS%20Mojave by @PhilCai1993"><span class="icon-twitter"> tweet</span></a>
+
+<a class="facebook" href="#" onclick="
+    window.open(
+      'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+      'facebook-share-dialog',
+      'width=626,height=436');
+    return false;"><span class="icon-facebook-rect"> Share</span>
+</a>
+
+            
+
+            
+
+            
+
+            <footer id="footer">
+    
+        <div id="social">
+
+	
+	
+    <a class="symbol" href="https://www.github.com/PhilCai1993">
+        <i class="fa fa-github-square"></i>
+    </a>
+    
+    <a class="symbol" href="https://www.twitter.com/PhilCai1993">
+        <i class="fa fa-twitter-square"></i>
+    </a>
+    
+    <a class="symbol" href="https://weibo.com/u/2562752444">
+        <i class="fa fa-weibo"></i>
+    </a>
+    
+
+
+</div>
+
+    
+    <p class="small">
+    
+       © Copyright 2018 <i class="fa fa-heart" aria-hidden="true"></i> PhilCai
+    
+    </p>
+    <p class="small">
+        Powered by <a href="http://www.gohugo.io/">Hugo</a> Theme By <a href="https://github.com/nodejh/hugo-theme-cactus-plus">nodejh</a>
+    </p>
+</footer>
+
+        </section>
+
+        <script src="https://nsobject.app/js/jquery-3.3.1.min.js"></script>
+<script src="https://nsobject.app/js/main.js"></script>
+<script src="https://nsobject.app/js/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+  
+
+
+
+
+    </body>
+</html>

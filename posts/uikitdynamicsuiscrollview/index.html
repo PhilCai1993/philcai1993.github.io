@@ -29,7 +29,7 @@
 		
 		<meta name="author" content="PhilCai">
 		
-		<meta name="generator" content="Hugo 0.37" />
+		<meta name="generator" content="Hugo 0.49" />
 		<title>用UIKit Dynamics模仿UIScrollView &middot; NSObject</title>
 		<link rel="shortcut icon" href="https://nsobject.app/images/favicon.ico">
 		<link rel="stylesheet" href="https://nsobject.app/css/style.css">
@@ -72,7 +72,7 @@
                     </h1>
                     <h2 class="headline">
                     Mar 15, 2016 12:00
-                    · 5097 words
+                    · 5100 words
                     · 11 minute read
                       <span class="tags">
                       
@@ -163,13 +163,13 @@
 
 <p>先简单的考虑只在手势结束后发生的惯性和弹性, 很幸运的是可以获取手势最后一刻的速度<code>[pan velocityInView:Container].y</code>. 第一反应是使用UIView的springAnimation, 因为它接受传入速度. 但是其他参数比如duration, 其实没有太好的方案去指定, 如果加上速度传递的效果, 它就更无能为力了. 反复滑动系统的ScrollView, 在调用栈发现它是由CADisplayLink驱动的, 发现它的行为和UIKit Dynamics的动画很符合, 而且UIKit Dynamics背后也是CADisplayLink,加上UIDynamicBehavior有个action属性:</p>
 
-<p><code>When running, the dynamic animator calls the action block on every animation step.</code></p>
+<pre><code class="language-When">
+在每一帧动画的时候都会调用下. 这些组合起来, 足够去模拟ScrollView的各种行为了.
 
-<p>在每一帧动画的时候都会调用下. 这些组合起来, 足够去模拟ScrollView的各种行为了.</p>
+一般我们使用UIKit Dynamics的时候, 我们是把各种Behaviour直接添加到UIView上, 然后视图就会在它到作用下动起来. 但在现在的情况下, 并不能够直接对视图添加Behaviour. 由于Behaviour实际是对遵循UIDynamicItem协议的对象做物理动画, 所以可以把contentOffset或者顶部约束的值做一层抽象. 
 
-<p>一般我们使用UIKit Dynamics的时候, 我们是把各种Behaviour直接添加到UIView上, 然后视图就会在它到作用下动起来. 但在现在的情况下, 并不能够直接对视图添加Behaviour. 由于Behaviour实际是对遵循UIDynamicItem协议的对象做物理动画, 所以可以把contentOffset或者顶部约束的值做一层抽象.</p>
-
-<pre><code class="language-objc">@interface DynamicItem : NSObject&lt;UIDynamicItem&gt;
+```objc
+@interface DynamicItem : NSObject&lt;UIDynamicItem&gt;
 @property (nonatomic, readwrite) CGPoint center;
 @property (nonatomic, readonly) CGRect bounds;
 @property (nonatomic, readwrite) CGAffineTransform transform;

@@ -6,10 +6,19 @@
     <description>Recent content in Ios on NSObject</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>cn</language>
-    <lastBuildDate>Tue, 15 Mar 2016 12:00:28 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 09 Oct 2018 17:30:25 +0800</lastBuildDate>
     
 	<atom:link href="https://nsobject.app/tags/ios/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Install Chisel on macOS Mojave</title>
+      <link>https://nsobject.app/posts/install-chisel/</link>
+      <pubDate>Tue, 09 Oct 2018 17:30:25 +0800</pubDate>
+      
+      <guid>https://nsobject.app/posts/install-chisel/</guid>
+      <description>最近刚跑路到新公司, 拿到新电脑之后装了macOS Mojave &amp;amp; Xcode 10之后准备看代码, 于是想用facebook/chisel 帮忙来简化一下lldb的调试</description>
+    </item>
     
     <item>
       <title>用UIKit Dynamics模仿UIScrollView</title>
