@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"/><meta name="og:site_name" content="NSObject.app"/><link rel="canonical" href="https://nsobject.app/posts/exec%20ruby%20on%20ios"/><meta name="twitter:url" content="https://nsobject.app/posts/exec%20ruby%20on%20ios"/><meta name="og:url" content="https://nsobject.app/posts/exec%20ruby%20on%20ios"/><title>在iOS中运行Ruby(mruby 简介) | NSObject.app</title><meta name="twitter:title" content="在iOS中运行Ruby(mruby 简介) | NSObject.app"/><meta name="og:title" content="在iOS中运行Ruby(mruby 简介) | NSObject.app"/><meta name="description" content="在iOS中运行Ruby"/><meta name="twitter:description" content="在iOS中运行Ruby"/><meta name="og:description" content="在iOS中运行Ruby"/><meta name="twitter:card" content="summary"/><link rel="stylesheet" href="/styles.css" type="text/css"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><link rel="shortcut icon" href="/images/favicon.png" type="image/png"/><link rel="alternate" href="/feed.rss" type="application/rss+xml" title="Subscribe to NSObject.app"/></head><body class="item-page"><header><div class="wrapper"><a href="/" class="site-name">NSObject.app</a></div></header><div class="wrapper"><article><div class="content"><h1>在iOS中运行Ruby(mruby 简介)</h1><p>iOS上执行<a href="https://developer.apple.com/documentation/javascriptcore">JS</a>、<a href="https://github.com/alibaba/LuaViewSDK">Lua</a>、<a href="https://bytekm.bytedance.net/kmf/articleDetail/391">Python</a>的案例已经很多了，好像很少有人分享Ruby。</p><p><a href="http://mruby.org/">mruby</a>是一个专门为嵌入式设计的Ruby, 作者是ruby的作者(<a href="https://en.wikipedia.org/wiki/Yukihiro_Matsumoto">Matz</a>)本人. 在它的<a href="https://github.com/mruby/mruby">GitHub</a>上说明它支持Ruby 1.9 的语法, 实际上2.x的语法也部分支持.</p><h2>诞生背景</h2><blockquote><p>拿当前的 Ruby (CRuby)来说, 预想的架构是”使用 Ruby 来开发应用程序. 如果遇到缺失的功能, 就使用 C 语言开发扩展程序库, 然后添加到 Ruby 中”. 换言之, 以从属关系来看, 是 Ruby 为主, C 为辅的关系. 然而, 这与嵌入式软件中常见的“使用 C/C++ 开发程序, 而仅把需要灵活性或生产效率的那部分交给 Ruby”的架构不符.</p></blockquote><p>根据作者的介绍, mruby 是一个轻量、极简的CRuby的子集. 定位是嵌入式, 以C(C++/ObjC) 为主, mruby为辅, 负责一些灵活多变的功能.</p><p>和同样强大的Lua相比, Ruby开发者的数量更多(个人感觉Ruby写起来爽一点).</p><p>至于为什么现在看起来还是Lua/JS 满天飞, mruby 少有人提…</p><img src="/Images/mruby_1.png"/><h2>mruby目录结构</h2><p>以目前最新的<a href="http://mruby.org/releases/2019/04/04/mruby-2.0.1-released.html">mruby 2.0.1 released</a>为例. <img src="/Images/mruby_2.png"/></p><ul><li>benchmark: 性能测试</li><li>bin: mruby 实现的几个工具<ul><li>mirb: 相当于日常用的 irb (Interactive Ruby)</li><li>mrbc: 编译器, 可以将ruby代码编译成中间代码(.mrb 格式)</li><li>mruby: 相当于ruby command line</li><li>mruby-strip: 大概是用来清除ruby编译产物的符号的</li><li>build: 编译产物的输出路径</li><li>examples: 一些C &amp; mruby 交互的demo</li><li>include: 头文件</li><li>lib: 一些mruby的基础功能</li><li>mrbgems: 同ruby gems</li><li>mrblib: mruby 的基础类型的声明或者实现(ruby)</li><li>src: mruby的核心实现(C)</li><li>tasks: toolchain(一堆rakefile)</li><li>test: 测试…</li><li>minirake: 精简版rake</li><li>build_config.rb: 类似CocoaPods 的podspec, 描述如何编译一个对应平台的二进制(比如可以嵌入到iOS的libmruby.a/MRuby.framework, Android 当然也可以)</li></ul></li></ul><h2>编译iOS静态库(.a)</h2><p>将 <em>build</em>config.rb* 替换为如下:</p><pre><code class="language-ruby">#build_config.rb
+MRuby::Build.new do |conf|
+  toolchain :clang
+  conf.gembox "default"
+end
+
+def crossbuild(arch, ios_sdk, min_version = "8.0.0")
+  MRuby::CrossBuild.new(arch) do |conf|
+    toolchain :clang
+    conf.gembox "default"
+    conf.bins = []
+
+    conf.cc do |cc|
+      cc.command = "xcrun"
+      cc.defines = ["MRB_INT64"] /#mrb_int 使用 int64_t/
+      cc.flags = %W(-sdk iphoneos clang -miphoneos-version-min=#{min_version} -arch #{arch} -isysroot #{ios_sdk} -fembed-bitcode)
+    end
+
+    conf.linker do |linker|
+      linker.command = "xcrun"
+      linker.flags = %W(-sdk iphoneos clang -miphoneos-version-min=#{min_version} -arch #{arch} -isysroot #{ios_sdk})
+    end
+
+    conf.build_mrbtest_lib_only
+    conf.test_runner.command = "env"
+  end
+end
+
+SIM_SDK_PATH = %x[xcrun --sdk iphonesimulator --show-sdk-path].strip
+DEVICE_SDK_PATH = %x[xcrun --sdk iphoneos --show-sdk-path].strip
+MIN_VERSION = "9.0.0"
+
+#crossbuild
+
+crossbuild("x86_64", SIM_SDK_PATH, MIN_VERSION)
+crossbuild("arm64", DEVICE_SDK_PATH, MIN_VERSION)
+crossbuild("armv7", DEVICE_SDK_PATH, MIN_VERSION)
+# 有需要可以加个i386 的
+</code></pre><p>然后在<em>build</em>config.rb<em> 的目录下, 执行 <code>./minirake</code>, 如果没问题会在build目录下生成 一个host 目录, 以及x86</em>64 &amp; arm64 &amp; armv7 目录(对应<code>CrossBuild</code>的声明). 在<code>$arch/lib</code>可以看到有<code>libmruby_core.a</code>,<code>libmruby.a</code>, lipo 合并一下, 可以拖到Xcode project使用(需要修改一部分include).</p><img src="/Images/mruby_3.png"/><h2>编译静态framework</h2><p>为了让Swift也可以和mruby 交互, 需要尝试将上面的<code>.a</code>打包成framework. 在上一步的<code>minirake</code>成功后, 和<em>build</em>config.rb<em>同一级新建一个</em>build<em>framework.rb</em>.</p><pre><code class="language-ruby">#build_framework.rb
+require "FileUtils"
+
+SCRIPT_PATH = File.dirname(__FILE__)
+BUILD_PATH = File.join(SCRIPT_PATH, "build")
+FRAMEWORK_TARGET_PATH = File.join(BUILD_PATH, "MRuby.framework")
+FRAMEWORK_HEADERS_DIR = File.join(FRAMEWORK_TARGET_PATH, "Headers")
+SOURCE_HEADERS_DIR = File.join(SCRIPT_PATH, "include")
+LIB_FILES = %w(x86_64 armv7 arm64).map do |arch|
+    File.join(SCRIPT_PATH, "build", arch, "lib/libmruby.a")
+end
+
+FileUtils.rm_rf FRAMEWORK_TARGET_PATH
+FileUtils.mkdir_p FRAMEWORK_HEADERS_DIR
+FileUtils.cp_r "#{SOURCE_HEADERS_DIR}/mruby.h", "#{FRAMEWORK_HEADERS_DIR}/mruby_renamed.h"
+FileUtils.cp_r "#{SOURCE_HEADERS_DIR}/mrbconf.h", FRAMEWORK_HEADERS_DIR
+FileUtils.cp_r "#{SOURCE_HEADERS_DIR}/mruby/.", FRAMEWORK_HEADERS_DIR
+
+Dir.glob("#{FRAMEWORK_HEADERS_DIR}/*.h").each do |file|
+  replaced = File.read(file).gsub(/^#include "mruby\/(.+)"$/, '#include "\1"').gsub(/^#include &lt;mruby\.h&gt;$/, '#include "mruby_renamed.h"').gsub(/^#include &lt;mruby\/(.+)&gt;$/, '#include "\1"')
+  File.open(file, "w") { |f| f.puts replaced }
+end
+
+File.open "#{FRAMEWORK_HEADERS_DIR}/MRuby.h", "w" do |file|
+  file.puts "#define MRB_INT64"
+  file.puts '#include "mruby_renamed.h"'
+  Dir.chdir "#{FRAMEWORK_HEADERS_DIR}" do
+    Dir["*.h"].each do |f|
+      next if f == "mruby/debug.h"
+      next if f == "boxing_nan.h"
+      next if f == "boxing_no.h"
+      next if f == "boxing_word.h"
+      next if f == "ops.h"
+      next if f == "opcode.h"
+      next if f == "mruby_renamed.h"
+      next if f == "mrbconf.h"
+      next if f == "MRuby.h"
+      file.puts "#include \"#{f}\""
+    end
+  end
+end
+
+Dir.mkdir "#{FRAMEWORK_TARGET_PATH}/Modules"
+  File.open "#{FRAMEWORK_TARGET_PATH}/Modules/module.modulemap", "w" do |file|
+    file.write &lt;&lt;EOF
+framework module MRuby {
+  umbrella header "MRuby.h"
+
+  exclude header "boxing_nan.h"
+  exclude header "boxing_no.h"
+  exclude header "boxing_word.h"
+  exclude header "debug.h"
+
+  export *
+  module * { export * }
+}
+EOF
+end
+
+system "lipo #{LIB_FILES.join " "} -create -output #{FRAMEWORK_TARGET_PATH}/MRuby"
+</code></pre><p>脚本的主要作用是 1. 将<em>include</em>目录下的各个<code>.h</code>平铺到同一层 2. 修正一部分<code>#include</code> 3. 将原先的<em>mruby.h</em>重命名, 防止和最终的<em>MRuby.framework</em>冲突. 4. 配置一下<em>modulemap</em></p><p>执行<code>./minirake &amp;&amp; ruby build_framework.rb</code>之后, 在<em>build</em> 目录下就有一个<em>MRuby.framework</em>.</p><img src="/Images/mruby_4.png"/><h2>参考</h2><ul><li><a href="https://www.stephenw.cc/2017/08/23/llvm-modules/">LLVM的 Modules</a>.</li><li><a href="http://www.ituring.com.cn/book/1339">关于mruby的一切</a></li><li><a href="https://github.com/stephenwzl/RubyCore">GitHub - stephenwzl/RubyCore: ruby core runtime wrapper for Objective-C &amp; CocoaTouch</a></li></ul></div><span>Tagged with: </span><ul class="tag-list"><li><a href="/tags/ios">iOS</a></li></ul></article></div><footer><p>Generated using <a href="https://github.com/johnsundell/publish">Publish</a></p><p><a href="/feed.rss">RSS feed</a></p></footer></body></html>
